@@ -15,13 +15,12 @@ defaults:
 
 jobs:
   LINT-JOB:
-    if: false
     name: 'LINT-JOB'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup NodeJS
         uses: actions/setup-node@v4
@@ -48,15 +47,13 @@ jobs:
       - name: Run the npm run lint command
         run: npm run lint
 
-
   TEST-JOB:
-    if: false
     name: 'TEST-JOB'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup NodeJS
         uses: actions/setup-node@v4
@@ -87,10 +84,11 @@ jobs:
   BUILD-JOB:
     name: 'BUILD-JOB'
     runs-on: ubuntu-latest
+    needs: [LINT-JOB, TEST-JOB]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -111,7 +109,6 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           MOVIE_API_URL: ${{ secrets.MOVIE_API_URL }}
         run: |
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker build --build-arg=REACT_APP_MOVIE_API_URL=$MOVIE_API_URL -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 

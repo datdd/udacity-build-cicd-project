@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup NodeJS
         uses: actions/setup-node@v4
@@ -54,7 +54,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup NodeJS
         uses: actions/setup-node@v4
@@ -85,10 +85,11 @@ jobs:
   BUILD-JOB:
     name: 'BUILD-JOB'
     runs-on: ubuntu-latest
+    needs: [LINT-JOB, TEST-JOB]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup NodeJS
         uses: actions/setup-node@v4
