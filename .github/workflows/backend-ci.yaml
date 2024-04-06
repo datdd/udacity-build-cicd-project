@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - main
-    paths: starter/backend
+    # paths: starter/backend
 
 defaults:
   run:
