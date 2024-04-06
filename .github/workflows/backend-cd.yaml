@@ -84,7 +84,6 @@ jobs:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           REPOSITORY: backend
           IMAGE_TAG: ${{ github.sha }}
-          MOVIE_API_URL: ${{ secrets.MOVIE_API_URL }}
         run: |
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
@@ -103,7 +102,11 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --region us-east-1 --name cluster
 
-      - name: Deploy to Kubernetes
+      - name: Deploy to EKS
+        env:
+            REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+            REPOSITORY: backend
+            IMAGE_TAG: ${{ github.sha }}
         working-directory: ./starter/backend/k8s
         run: |
           kustomize edit set image backend=$REGISTRY/$REPOSITORY:$IMAGE_TAG
