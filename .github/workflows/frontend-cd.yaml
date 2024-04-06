@@ -1,0 +1,138 @@
+name: 'Frontend-CD'
+on:
+  # Manual trigger using the workflow_dispatch event
+  workflow_dispatch:
+  
+  # Automatic trigger on pull request events targeting the main branch
+  pull_request:
+    branches:
+      - main
+    paths: starter/frontend
+
+defaults:
+  run:
+    working-directory: ./starter/frontend
+
+jobs:
+  LINT-JOB:
+    if: false
+    name: 'LINT-JOB'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./starter/frontend/.nvmrc
+
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        shell: bash
+        run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run the npm run lint command
+        run: npm run lint
+
+
+  TEST-JOB:
+    if: false
+    name: 'TEST-JOB'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          node-version-file: starter/frontend/.nvmrc
+      
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        shell: bash
+        run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run the npm run test command
+        run: npm run lint
+
+  BUILD-JOB:
+    name: 'BUILD-JOB'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
+          aws-region: us-east-1
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push docker image to Amazon ECR
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: frontend
+          IMAGE_TAG: ${{ github.sha }}
+          MOVIE_API_URL: ${{ secrets.MOVIE_API_URL }}
+        run: |
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker build --build-arg=REACT_APP_MOVIE_API_URL=$MOVIE_API_URL -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.17.0'
+      
+      - name: Install Kustomize
+        run: GO111MODULE=on go install sigs.k8s.io/kustomize/kustomize/v5@latest
+      
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region us-east-1 --name cluster
+
+      - name: Deploy to Kubernetes
+        working-directory: ./starter/frontend/k8s
+        run: |
+          kustomize edit set image frontend=$REGISTRY/$REPOSITORY:$IMAGE_TAG
+          kustomize build | kubectl apply -f -
+
+

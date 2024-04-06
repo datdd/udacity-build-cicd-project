@@ -1,0 +1,127 @@
+name: 'Frontend-CI'
+on:
+  # Manual trigger using the workflow_dispatch event
+  workflow_dispatch:
+  
+  # Automatic trigger on pull request events targeting the main branch
+  pull_request:
+    branches:
+      - main
+    paths: starter/frontend
+
+defaults:
+  run:
+    working-directory: ./starter/frontend
+
+jobs:
+  LINT-JOB:
+    name: 'LINT-JOB'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./starter/frontend/.nvmrc
+
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        shell: bash
+        run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run the npm run lint command
+        run: npm run lint
+
+
+  TEST-JOB:
+    name: 'TEST-JOB'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          node-version-file: starter/frontend/.nvmrc
+      
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        shell: bash
+        run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run the npm run test command
+        run: npm run lint
+
+  BUILD-JOB:
+    name: 'BUILD-JOB'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          node-version-file: starter/frontend/.nvmrc
+      
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        shell: bash
+        run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the app
+        run: npm run build
+
+      - name: Build Docker image
+        env:
+          MOVIE_API_URL: ${{ secrets.MOVIE_API_URL }}
+        run: |
+          docker build --build-arg=REACT_APP_MOVIE_API_URL=$MOVIE_API_URL --tag=frontend:latest .
+
+
+
+      
